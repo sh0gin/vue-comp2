@@ -1,5 +1,62 @@
 <script setup>
+import { reactive, ref, inject } from 'vue';
+import { useRouter } from 'vue-router';
 
+
+const router = useRouter();
+let email = ref("");
+let password = ref("");
+let errors = reactive({
+    email_error: null,
+    password_error: null,
+})
+
+const apiUrl = inject('apiUrl');
+const activeToken = inject('activeToken');
+
+async function login() {
+    Object.keys(errors).forEach(element => {
+        errors[element] = null
+    });
+
+    const myHeaders = new Headers();
+    myHeaders.append('Content-Type', 'application/json');
+
+    const raw = JSON.stringify({
+        email: email.value,
+        password: password.value,
+    })
+
+    const requestOptions = {
+        method: "POST",
+        headers: myHeaders,
+        body: raw,
+    }
+
+    let response = await fetch(`${apiUrl.value}api/login`, requestOptions);
+    const result = await response.json();
+
+    if (response.status == 200) {
+        
+        localStorage.setItem('activeToken', result.token);
+        router.push('/index');
+    } else if (response.status == 400) {
+        errors.email_error = 'Поле необходимо заполнить';
+        errors.password_error = 'Поле необходимо заполнить';
+    } else if (response.status == 401) {
+        errors.password_error = 'Логин или пароль неверные';
+    }
+
+
+    if ("errors" in result) {
+        Object.keys(result.errors).forEach(elem => {
+            errors[`${elem}_error`] = result.errors[elem] ? result.errors[elem][0] : null;
+        })
+    }
+
+
+
+}
 
 </script>
 
@@ -7,11 +64,15 @@
     <header>
         <h1>Вход</h1>
     </header>
-    <nav><a href="index.html">← Назад</a></nav>
+    <nav><router-link class="nav-link" to="/index">← Назад</router-link></nav>
     <main>
-        <form action="/api/user/login" method="POST">
-            <label>Email: <input name="email" type="email" required></label><br><br>
-            <label>Пароль: <input name="password" type="password" required></label><br><br>
+        <form @submit.prevent="login()">
+            <label>Email: <input v-model="email" name="email"></label>
+            <span v-if="errors.email_error" class="error-text">{{ errors.email_error }}</span>
+
+            <label>Пароль: <input v-model="password" name="password"></label>
+            <span v-if="errors.password_error" class="error-text">{{ errors.password_error }}</span>
+
             <button type="submit">Войти</button>
         </form>
     </main>

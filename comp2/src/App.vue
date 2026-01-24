@@ -1,15 +1,34 @@
 <script setup>
 import { RouterView } from 'vue-router';
+import { ref, onMounted, provide } from 'vue';
+import Header from './component/Header.vue';
+
+let activeToken = ref("");
+let userStatus = ref('');
+provide('apiUrl', ref('http://paint/'));
+provide('activeToken', activeToken);
+provide('userStatus', userStatus);
+
+onMounted(() => {
+  activeToken.value = localStorage.getItem('activeToken');
+  userStatus.value = localStorage.getItem('userStatus');
+})
 
 </script>
 
 <template>
+  <Header></Header>
   <main>
     <RouterView></RouterView>
   </main>
 </template>
 
 <style>
+.error-text {
+  font-size: 12px;
+  color: #ef4444;
+}
+
 body {
   font-family: Arial, sans-serif;
   max-width: 800px;

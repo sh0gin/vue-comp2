@@ -1,5 +1,32 @@
 <script setup>
-
+const active2 = async () => {
+    if (!canv.value) return;
+    const c = canv.value, ctx = c.getContext('2d');
+    c.width = 1600; c.height = 900; ctx.lineWidth = 20;
+    c.onmousedown = () => isMouseDown = true;
+    c.onmouseup = () => (isMouseDown = false, ctx.beginPath(), cords.value.push('mouseup'));
+    c.onmousemove = e => {
+        if (isMouseDown) {
+            const p = getMousePos(c, e);
+            cords.value.push([p.x, p.y]);
+            ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath();
+            ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+        }
+    };
+    document.onkeydown = async e => {
+        if (e.key === 's') save();
+        if (e.key === 'c') {
+            ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
+            cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
+            activeDesk.value.structure.objects = [];
+            await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken.value}`},
+                body: JSON.stringify(activeDesk.value)
+            });
+        }
+    };
+};
 </script>
 
 <template>

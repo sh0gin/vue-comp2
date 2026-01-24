@@ -3,17 +3,7 @@
 </script>
 
 <template>
-    <header>
-        <h1>Доски</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="register.html">Регистрация</a></li>
-            <li><a href="login.html">Вход</a></li>
-            <li><a href="create-board.html">Создать доску</a></li>
-            <li><a href="public-boards.html">Публичные доски</a></li>
-        </ul>
-    </nav>
+
     <main>
         <p>Добро пожаловать! Используйте меню выше для навигации.</p>
     </main>

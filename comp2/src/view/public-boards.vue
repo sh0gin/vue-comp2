@@ -26,7 +26,7 @@
             <div class="board-item">
                 <h3>UI Kit 2026</h3>
                 <p class="likes">❤️ 128</p>
-                <a href="view-by-hash.html?hash=hash456">Просмотреть</a>
+                <RouterLink to="/view-board?hash=hhh">Просмотреть</RouterLink>
             </div>
         </div>
     </main>

@@ -1,5 +1,149 @@
 <script setup>
+import { inject, onMounted, onUnmounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
+const canv = ref()
+const apiUrl = inject('apiUrl');
+const activeToken = inject('activeToken');
+const route = useRoute()
+const cords = ref([])
+const activeDesk = ref();
+const hash = ref("");
+
+let isMouseDown = false;
+let ctx = null
+
+
+const active = async () => {
+    if (!canv.value) return;
+    const c = canv.value; 
+    ctx = c.getContext('2d');
+    c.width = 1600; c.height = 900; ctx.lineWidth = 20;
+    c.onmousedown = () => isMouseDown = true;
+    c.onmouseup = () => (isMouseDown = false, ctx.beginPath(), cords.value.push('mouseup'));
+    c.onmousemove = e => {
+        if (isMouseDown) {
+            const p = getMousePos(c, e);
+            cords.value.push([p.x, p.y]);
+            ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath();
+            ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+        }
+    };
+    document.onkeydown = async e => {
+        if (e.key === 's') save();
+        if (e.key === 'c') {
+            ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
+            cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
+            activeDesk.value.structure.objects = [];
+            await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken.value}`},
+                body: JSON.stringify(activeDesk.value)
+            });
+        }
+    };
+};
+
+function getMousePos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: evt.clientX - rect.left,
+        y: evt.clientY - rect.top
+    };
+}
+
+async function findDesk() {
+
+    activeDesk.value = null;
+    const myHeaders = new Headers();
+    myHeaders.append('Content-Type', 'application/json');
+    myHeaders.append('Authorization', `Bearer ${activeToken.value}`);
+
+    const raw = JSON.stringify({
+        hash: hash.value,
+    })
+
+    const requestOptions = {
+        method: "GET",
+        headers: myHeaders,
+    }
+
+    let response = await fetch(`${apiUrl.value}api/board/public/${hash.value}`, requestOptions);
+    const result = await response.json();
+    if (result.code == 404) {
+        activeDesk.value = null;
+    } else {
+        activeDesk.value = result.board;
+        let old_coords = [...activeDesk.value.structure.objects];
+
+        let timer = setTimeout(function tmp() {
+            const crd = activeDesk.value.structure.objects.shift()
+            if (!crd) {
+                clearTimeout(timer);
+                ctx.beginPath();
+                activeDesk.value.structure.objects = old_coords;
+                old_coords = "";
+                return;
+            }
+
+            const pos = {
+                x: crd['0'],
+                y: crd['1'],
+            }
+
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+            ctx.fill()
+
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y)
+            timer = setTimeout(tmp, 1)
+
+        }, 1)
+        active()
+    }
+}
+
+async function save() {
+    activeDesk.value.structure.objects.push(...cords.value);
+
+
+    const myHeaders = new Headers();
+    myHeaders.append('Content-Type', 'application/json');
+    myHeaders.append('Authorization', `Bearer ${activeToken.value}`);
+
+    const raw = JSON.stringify(activeDesk.value)
+    const requestOptions = {
+        method: "PATCH",
+        headers: myHeaders,
+        body: raw,
+    }
+
+    let response = await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, requestOptions);
+    const result = await response.json();
+}
+
+
+
+onMounted(() => {
+    if (route.query['hash']) {
+        hash.value = route.query['hash'];
+        findDesk();
+    };
+
+    (async () => await active())()
+})
+
+onUnmounted(() => {
+    // console.log('123123123');
+    
+})
+// let ctx = canv.getContext('2d');
+
+// canv.width
 </script>
 
 <template>
@@ -8,23 +152,25 @@
     </header>
     <nav><a href="index.html">← Назад</a></nav>
     <main>
-        <form action="/api/board/view" method="GET">
-            <label>ID доски: <input name="id" type="number" required></label><br><br>
+        <form @submit.prevent="findDesk()">
+            <label>Hash доски: <input v-model="hash" name="id" required></label><br><br>
+            <span v-if="!activeDesk">Доска не найдена</span>
             <button type="submit">Показать</button>
         </form>
 
         <!-- Пример макета доски -->
         <div class="canvas-container">
-            <div class="canvas">
-                <div class="object focused" style="top: 100px; left: 200px; width: 200px; height: 100px;">
+            <canvas class="canvas" ref="canv">
+
+                <!-- <div class="object focused" style="top: 100px; left: 200px; width: 200px; height: 100px;">
                     Прямоугольник
                     <div class="object-label">Редактирует: Алексей</div>
                 </div>
                 <div class="object"
                     style="top: 300px; left: 500px; width: 150px; height: 150px; border-radius: 50%; background: #e3f2fd;">
                     Круг
-                </div>
-            </div>
+                </div> -->
+            </canvas>
         </div>
     </main>
 </template>
@@ -92,11 +238,14 @@ button:hover {
 }
 
 .canvas-container {
-    overflow: auto;
+    /* overflow: auto; */
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     margin: 20px 0;
     background: #fff;
+    position: absolute;
+    left: 50px;
+    padding-bottom: 50px;
 }
 
 .canvas {

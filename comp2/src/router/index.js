@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Register from '../view/register.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -6,7 +7,7 @@ const router = createRouter({
     {
       path: '/register',
       name: 'register',
-      component: () => import('../view/register.vue')
+      component: () => Register
     },
     {
       path: '/index',
@@ -26,6 +27,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
+      alias: '/',
       component: () => import('../view/login.vue'),
     },
     {
@@ -53,6 +55,11 @@ const router = createRouter({
       name: 'view-by-hash',
       component: () => import('../view/view-by-hash.vue')
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => Register
+    }
   ],
 })
 

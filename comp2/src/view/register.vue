@@ -1,4 +1,55 @@
 <script setup>
+import { inject, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+
+const router = useRouter();
+
+let email = ref("");
+let password = ref("");
+let name = ref("");
+let errors = reactive({
+    name_error: null,
+    email_error: null,
+    password_error: null,
+})
+
+const apiUrl = inject('apiUrl');
+
+async function register() {
+    Object.keys(errors).forEach(element => {
+        errors[element] = null
+    });
+
+    const myHeaders = new Headers();
+    myHeaders.append('Content-Type', 'application/json');
+
+    const raw = JSON.stringify({
+        email: email.value,
+        password: password.value,
+        name: name.value,
+    })
+
+    const requestOptions = {
+        method: "POST",
+        headers: myHeaders,
+        body: raw,
+    }
+
+    let response = await fetch(`${apiUrl.value}api/register`, requestOptions);
+    const result = await response.json();
+
+    if (response.status == 201) {
+        router.push("/index");
+    } else {
+        if ('errors' in result) {
+            Object.keys(result.errors).forEach(elem => {
+                errors[`${elem}_error`] = result.errors[elem] ? result.errors[elem][0] : null;
+            })
+        }
+    }
+
+}
 
 </script>
 
@@ -6,17 +57,19 @@
     <header>
         <h1>Регистрация</h1>
     </header>
-    <nav><a href="index.html">← Назад</a></nav>
+    <nav> <router-link class="nav-link" to="/index">← Назад</router-link>
+    </nav>
     <main>
-        <form action="/api/user/register" method="POST">
-            <label>Email: <input name="email" type="email" required></label><br><br>
-            <label>Имя (латиницей): <input name="name" type="text" pattern="[A-Za-z]+" title="Только латинские буквы"
-                    required></label><br><br>
+        <form @submit.prevent='register()'>
+            <label>Email: <input name="email" v-model="email"></label>
+            <span v-if="errors.email_error" class="error-text">{{ errors.email_error }}</span>
+            <label>Имя (латиницей): <input name="name" type="text" v-model="name"></label>
+            <span v-if="errors.name_error" class="error-text">{{ errors.name_error }}</span>
             <label>Пароль (8+ символов, цифры и спецсимволы):
-                <input name="password" type="password" required minlength="8"
-                    pattern="^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$"
-                    title="Минимум 8 символов, цифра и спецсимвол">
-            </label><br><br>
+                <input name="password" type="password" v-model="password">
+            </label>
+            <span v-if="errors.password_error" class="error-text">{{ errors.password_error }}</span>
+
             <button type="submit">Зарегистрироваться</button>
         </form>
     </main>
