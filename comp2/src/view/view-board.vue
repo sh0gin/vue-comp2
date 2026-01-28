@@ -5,46 +5,74 @@ import { useRoute } from 'vue-router';
 const canv = ref()
 const apiUrl = inject('apiUrl');
 const activeToken = inject('activeToken');
+// const activeToken = ref();
 const route = useRoute()
 const cords = ref([])
 const activeDesk = ref();
 const hash = ref("");
-
+const   socket = ref()
 let isMouseDown = false;
 let ctx = null
 
+let loaderTrue = ref(false);
 
 const active = async () => {
     if (!canv.value) return;
-    const c = canv.value; 
-    ctx = c.getContext('2d');
-    c.width = 1600; c.height = 900; ctx.lineWidth = 20;
-    c.onmousedown = () => isMouseDown = true;
-    c.onmouseup = () => (isMouseDown = false, ctx.beginPath(), cords.value.push('mouseup'));
-    c.onmousemove = e => {
+    // const c = canv.value;
+    ctx = canv.value.getContext('2d');
+    canv.value.width = 1600; canv.value.height = 900; ctx.lineWidth = 20;
+    canv.value.onmousedown = () => isMouseDown = true;
+    canv.value.onmouseup = () => (isMouseDown = false, ctx.beginPath(), cords.value.push('mouseup'));
+    canv.value.onmousemove = e => {
         if (isMouseDown) {
-            const p = getMousePos(c, e);
+            const p = getMousePos(canv.value, e);
             cords.value.push([p.x, p.y]);
             ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath();
             ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(p.x, p.y);
         }
     };
     document.onkeydown = async e => {
-        if (e.key === 's') save();
+        if (e.key === 's') {
+            save();
+        };
         if (e.key === 'c') {
-            ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
-            cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
-            activeDesk.value.structure.objects = [];
-            await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
-                method: 'PATCH',
-                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken.value}`},
-                body: JSON.stringify(activeDesk.value)
-            });
+            clear();
         }
     };
 };
 
-function getMousePos(canvas, evt) {
+const save = async () => {
+    console.log(JSON.stringify({ ...activeDesk.value, structure: { objects: [...activeDesk.value.structure.objects, ...cords.value] } }));
+
+
+    if (socket.value?.readyState === WebSocket.OPEN) {
+        socket.value.send(JSON.stringify({
+            type: 'update_board',
+            boardId: activeDesk.value.id,
+            token: activeToken.value, // если нужна авторизация
+            data: {
+                structure: { objects: [...activeDesk.value.structure.objects, ...cords.value] }
+            }
+        }));
+    }
+    // await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
+    //     method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken.value}` },
+    //     body: JSON.stringify({ ...activeDesk.value, structure: { objects: [...activeDesk.value.structure.objects, ...cords.value] } })
+    // });
+}
+
+const clear = async () => {
+    ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canv.value.width, canv.value.height);
+    cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
+    activeDesk.value.structure.objects = [];
+    await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken.value}` },
+        body: JSON.stringify(activeDesk.value)
+    });
+}
+
+const getMousePos = (canvas, evt) => {
     const rect = canvas.getBoundingClientRect();
     return {
         x: evt.clientX - rect.left,
@@ -52,28 +80,20 @@ function getMousePos(canvas, evt) {
     };
 }
 
-async function findDesk() {
-
+const findDesk = async () => {
     activeDesk.value = null;
-    const myHeaders = new Headers();
-    myHeaders.append('Content-Type', 'application/json');
-    myHeaders.append('Authorization', `Bearer ${activeToken.value}`);
 
-    const raw = JSON.stringify({
-        hash: hash.value,
-    })
+    const response = await fetch(`${apiUrl.value}api/board/public/${hash.value}`, {
+        headers: { 'Authorization': `Bearer ${activeToken.value}` }
+    });
 
-    const requestOptions = {
-        method: "GET",
-        headers: myHeaders,
-    }
 
-    let response = await fetch(`${apiUrl.value}api/board/public/${hash.value}`, requestOptions);
     const result = await response.json();
-    if (result.code == 404) {
-        activeDesk.value = null;
-    } else {
+
+    if (result.code != 404) {
+        loaderTrue.value = true;
         activeDesk.value = result.board;
+        activeDesk.value.structure = JSON.parse(activeDesk.value.structure);
         let old_coords = [...activeDesk.value.structure.objects];
 
         let timer = setTimeout(function tmp() {
@@ -83,6 +103,7 @@ async function findDesk() {
                 ctx.beginPath();
                 activeDesk.value.structure.objects = old_coords;
                 old_coords = "";
+                loaderTrue.value = false;
                 return;
             }
 
@@ -107,28 +128,35 @@ async function findDesk() {
     }
 }
 
-async function save() {
-    activeDesk.value.structure.objects.push(...cords.value);
-
-
-    const myHeaders = new Headers();
-    myHeaders.append('Content-Type', 'application/json');
-    myHeaders.append('Authorization', `Bearer ${activeToken.value}`);
-
-    const raw = JSON.stringify(activeDesk.value)
-    const requestOptions = {
-        method: "PATCH",
-        headers: myHeaders,
-        body: raw,
-    }
-
-    let response = await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, requestOptions);
-    const result = await response.json();
+const tooglePublic = async () => {
+    console.log(activeDesk.value);
 }
+
+const connect = () => {
+    socket.value = new WebSocket('ws://localhost:8080'); // Замени на свой URL
+
+    socket.value.onopen = () => {
+        console.log('Соединение установлено');
+    };
+
+    socket.value.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        messages.value.push(data);
+    };
+
+    socket.value.onclose = () => {
+        console.log('Соединение закрыто');
+    };
+
+    socket.value.onerror = (error) => {
+        console.error('Ошибка WebSocket:', error);
+    };
+};
 
 
 
 onMounted(() => {
+    connect();
     if (route.query['hash']) {
         hash.value = route.query['hash'];
         findDesk();
@@ -138,12 +166,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-    // console.log('123123123');
-    
-})
-// let ctx = canv.getContext('2d');
+    if (socket.value) {
+        socket.value.close();
+    }
+});
 
-// canv.width
 </script>
 
 <template>
@@ -151,57 +178,62 @@ onUnmounted(() => {
         <h1>Просмотр доски</h1>
     </header>
     <nav><a href="index.html">← Назад</a></nav>
-    <main>
+    <main class="main-layout">
         <form @submit.prevent="findDesk()">
             <label>Hash доски: <input v-model="hash" name="id" required></label><br><br>
             <span v-if="!activeDesk">Доска не найдена</span>
             <button type="submit">Показать</button>
         </form>
 
-        <!-- Пример макета доски -->
-        <div class="canvas-container">
-            <canvas class="canvas" ref="canv">
+        <div v-show="loaderTrue" class="loader">
+            <div class="spinner"></div>
+            <p>Загрузка...</p>
+        </div>
 
-                <!-- <div class="object focused" style="top: 100px; left: 200px; width: 200px; height: 100px;">
-                    Прямоугольник
-                    <div class="object-label">Редактирует: Алексей</div>
-                </div>
-                <div class="object"
-                    style="top: 300px; left: 500px; width: 150px; height: 150px; border-radius: 50%; background: #e3f2fd;">
-                    Круг
-                </div> -->
-            </canvas>
+        <!-- Блоки слева -->
+        <aside class="side-blocks">
+            <div class="board-info" v-show="activeDesk">
+                <h3>Информация о доске</h3>
+                <p>
+                    <strong>Название:</strong>
+                    <span>{{ activeDesk?.title || 'Без названия' }}</span>
+                </p>
+                <button class="black">{{ activeDesk?.is_public ? 'Сделать приватной' : 'Сделать публичной' }}</button>
+                <button class="black" @click="save">Сохранить</button>
+                <button class="black" @click="clear">Очистить</button>
+            </div>
+
+            <div class="tools-panel">
+                <h3>Инструменты</h3>
+                <button class="black" @click="addShape('rect')">Прямоугольник</button>
+                <button class="black" @click="addShape('circle')">Круг</button>
+                <button class="black" @click="addShape('line')">Линия</button>
+                <button class="black" @click="addText">Текст</button>
+                <button class="black" @click="uploadImage">Вставить изображение</button>
+            </div>
+        </aside>
+
+        <!-- Канвас на всю оставшуюся часть -->
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <canvas class="canvas" ref="canv"></canvas>
+            </div>
         </div>
     </main>
 </template>
 
+
 <style scoped>
-body {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
+.black {
+    color: black;
+}
+
+.main-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
     padding: 20px;
-    background: #f9f9f9;
-    color: #333;
-}
-
-header h1 {
-    color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 10px;
-}
-
-nav {
-    margin: 15px 0;
-}
-
-nav a {
-    color: #3498db;
-    text-decoration: none;
-}
-
-nav a:hover {
-    text-decoration: underline;
+    box-sizing: border-box;
 }
 
 form {
@@ -209,69 +241,95 @@ form {
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    z-index: 10;
 }
 
-label {
-    display: block;
-    margin: 10px 0 5px;
+.side-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 250px;
+    position: fixed;
+    left: 20px;
+    top: 150px;
+    z-index: 5;
 }
 
-input,
-button {
+.board-info,
+.tools-panel {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    width: 250px;
+}
+
+.tools-panel button,
+.board-info button {
     width: 100%;
-    padding: 8px;
     margin-bottom: 10px;
+    padding: 8px;
+    cursor: pointer;
     border: 1px solid #ccc;
     border-radius: 4px;
-    box-sizing: border-box;
-}
-
-button {
-    background: #3498db;
-    color: white;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-button:hover {
-    background: #2980b9;
+    background: #f9f9f9;
 }
 
 .canvas-container {
-    /* overflow: auto; */
+    flex: 1;
+    /* margin-left: 290px; */
+    margin-top: 20px;
+    overflow: hidden;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    margin: 20px 0;
     background: #fff;
-    position: absolute;
-    left: 50px;
-    padding-bottom: 50px;
+    width: 100vh;
+}
+
+.canvas-wrapper {
+    display: inline-block;
+    background: #fafafa;
+    border: 2px dashed #ccc;
 }
 
 .canvas {
     width: 1600px;
     height: 900px;
-    position: relative;
     background: #fafafa;
-    border: 2px dashed #ccc;
+    display: block;
 }
 
-.object {
-    position: absolute;
-    padding: 8px;
-    border: 2px solid transparent;
-    border-radius: 4px;
-    background: white;
+.loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.8);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
 }
 
-.object.focused {
-    border-color: #42b883;
-    box-shadow: 0 0 0 2px rgba(66, 184, 131, 0.3);
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-.object-label {
-    font-size: 0.85rem;
-    color: #666;
-    margin-top: 4px;
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>

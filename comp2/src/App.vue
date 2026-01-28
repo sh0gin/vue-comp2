@@ -5,7 +5,7 @@ import Header from './component/Header.vue';
 
 let activeToken = ref("");
 let userStatus = ref('');
-provide('apiUrl', ref('http://paint/'));
+provide('apiUrl', ref('http://paint2-version/'));
 provide('activeToken', activeToken);
 provide('userStatus', userStatus);
 
@@ -24,6 +24,11 @@ onMounted(() => {
 </template>
 
 <style>
+
+/* main {
+  width: 90%;
+} */
+
 .error-text {
   font-size: 12px;
   color: #ef4444;

@@ -14,7 +14,7 @@ let errors = reactive({
 const apiUrl = inject('apiUrl');
 const activeToken = inject('activeToken');
 
-async function login() {
+const login = async () => {
     Object.keys(errors).forEach(element => {
         errors[element] = null
     });
