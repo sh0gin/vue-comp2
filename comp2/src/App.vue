@@ -1,11 +1,11 @@
 <script setup>
 import { RouterView } from 'vue-router';
 import { ref, onMounted, provide } from 'vue';
-import Header from './component/Header.vue';
+import Header from '@/components/Header.vue';
 
 let activeToken = ref("");
 let userStatus = ref('');
-provide('apiUrl', ref('http://paint2-version/'));
+provide('apiUrl', ref('http://rch/'));
 provide('activeToken', activeToken);
 provide('userStatus', userStatus);
 

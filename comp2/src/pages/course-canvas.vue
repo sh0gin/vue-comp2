@@ -10,7 +10,7 @@ const route = useRoute()
 const cords = ref([])
 const activeDesk = ref();
 const hash = ref("");
-const   socket = ref()
+const socket = ref()
 let isMouseDown = false;
 let ctx = null
 
@@ -205,7 +205,7 @@ onUnmounted(() => {
 
             <div class="tools-panel">
                 <h3>Инструменты</h3>
-                <button class="black" @click="addShape('rect')">Прямоугольник</button>
+                <button class="black" @click="addShape('rect')">Добавить элемент курса</button>
                 <button class="black" @click="addShape('circle')">Круг</button>
                 <button class="black" @click="addShape('line')">Линия</button>
                 <button class="black" @click="addText">Текст</button>
@@ -214,11 +214,11 @@ onUnmounted(() => {
         </aside>
 
         <!-- Канвас на всю оставшуюся часть -->
-        <div class="canvas-container">
-            <div class="canvas-wrapper">
-                <canvas class="canvas" ref="canv"></canvas>
-            </div>
-        </div>
+<!--        <div class="canvas-container">-->
+<!--            <div class="canvas-wrapper">-->
+<!--                <canvas class="canvas" ref="canv"></canvas>-->
+<!--            </div>-->
+<!--        </div>-->
     </main>
 </template>
 

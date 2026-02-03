@@ -16,8 +16,8 @@ const active2 = async () => {
     document.onkeydown = async e => {
         if (e.key === 's') save();
         if (e.key === 'c') {
-            ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
-            cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
+            // ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
+            // cords.value = []; ctx.beginPath(); ctx.fillStyle = 'black';
             activeDesk.value.structure.objects = [];
             await fetch(`${apiUrl.value}api/board/${activeDesk.value.id}`, {
                 method: 'PATCH',
@@ -41,13 +41,17 @@ const active2 = async () => {
         </form>
 
         <!-- Макет доски -->
-        <div class="canvas-container">
-            <div class="canvas">
-                <div class="object" style="top: 200px; left: 300px; width: 250px; height: 80px; background: #f1f8e9;">
-                    Цитата дня
-                </div>
-            </div>
+<!--        <div class="canvas-container">-->
+<!--            <div class="canvas">-->
+<!--                <div class="object" style="top: 200px; left: 300px; width: 250px; height: 80px; background: #f1f8e9;">-->
+<!--                    Цитата дня-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+        <div class="desk">
+
         </div>
+
         <p class="likes">❤️ 42 лайка</p>
         <form action="/api/board/like" method="POST" style="margin-top: 10px;">
             <input type="hidden" name="id" value="5" />
